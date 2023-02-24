@@ -1,0 +1,10 @@
+https:
+  port: "8082"
+  basePath: "/api/*"
+
+sfdc:
+  username: "mebipin@mycompany.com"
+
+cosmos:
+  url: "https://2bfff54b-0ee0-4-231-b9ee.documents.azure.com:443/"
+  version: "2018-12-31"

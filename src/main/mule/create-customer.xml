@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:azure-cosmos-db-connector-mule-4="http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4 http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4/current/mule-azure-cosmos-db-connector-mule-4.xsd">
+	<sub-flow name="createCustomer" doc:id="e8ddc77d-ce59-4579-8fad-2107c1da1864">
+		<set-variable value="#[payload]" doc:name="originalPayload" doc:id="6d7be601-3423-4aba-b3ab-531368fe893d" variableName="originalPayload"/>
+		<set-variable value="#[uuid()]" doc:name="extCustomerId" doc:id="a622c44b-121a-434f-ac0e-d4a2a63de44e" variableName="extCustomerId" />
+		<ee:transform doc:name="createContactPayload" doc:id="224c20fe-839a-4fec-8cbe-4c3be5a35624">
+					<ee:message>
+				<ee:set-payload resource="dwl/createContactPayload.dwl" />
+					</ee:message>
+				</ee:transform>
+		<logger level="INFO" doc:name="createLeadInSfdc" doc:id="6d64616f-68c0-48d8-93c0-42b02d547993" message="Going to create the record in SFDC -&gt; #[payload]"/>
+		<salesforce:create doc:name="createLead" doc:id="11a24d3c-ae21-4b94-ad91-069e8d169fcf" config-ref="Salesforce_Config" type="Lead" />
+		<logger level="INFO" doc:name="leadCreationResponse" doc:id="ac0d1e26-d228-4f8e-9b9b-ac05bb373a01" message="leadCreationResponse -&gt; #[output application/json --- payload]" />
+		<set-variable value="" doc:name="leadId" doc:id="a5080245-c67c-4274-b9ed-53b6c7d136a5" variableName="leadId"/>
+		<choice doc:name="Choice" doc:id="5cfbc0ca-da4b-4d64-940b-a78cbad76a9a">
+			<when expression="#[payload.items[0].payload.success]">
+				<ee:transform doc:name="docCreationPayloadForDb" doc:id="c3f44b95-e30a-4885-ba34-4d1b0a9d6d5e">
+					<ee:message>
+						<ee:set-payload resource="dwl/docCreationPayloadForDb.dwl" />
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="createDocumentInDb" doc:id="646187d6-9e09-4699-b236-5432364523a0" message='Going to create the record in DB -&gt; #[payload]' />
+				<azure-cosmos-db-connector-mule-4:create-document doc:name="Create Document" doc:id="13368435-2773-42dc-9b90-398498378462" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuank" collIdUriParam="customers" xMsDocumentdbPartitionkeyHeader="#['[&quot;' ++ payload.customerId ++ '&quot;]']">
+				</azure-cosmos-db-connector-mule-4:create-document>
+				<logger level="INFO" doc:name="dbRecordCreationResponse" doc:id="d8da393d-3828-4d91-bf59-ff67aab8697a" message="Response from DB API - &gt; #[payload]"/>
+				<ee:transform doc:name="customerCreationResponseAndStatus" doc:id="89ad7f09-0280-4a0f-b135-0c4de891fc8b">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: 'Customer successfully created',
+	customerId : vars.extCustomerId
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-variable value="400" doc:name="httpStatus" doc:id="45030f90-c0b9-48b3-8f5a-c6198454e95f" variableName="httpStatus"/>
+				<ee:transform doc:name="sfdcErrorResponseTransform" doc:id="6007cc0c-5c02-4a3a-ae27-66516fb1e363" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	statusCode: "400",
+	message: "Could not create customer due to error: " ++ (payload.items[0].payload.errors[0].statusCode default '')
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

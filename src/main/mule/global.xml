@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:azure-cosmos-db-connector-mule-4="http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/mule-apikit 
+						http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+						http://www.mulesoft.org/schema/mule/http 
+						http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+						http://www.mulesoft.org/schema/mule/core
+						http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+						http://www.mulesoft.org/schema/mule/ee/core 
+						http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+						http://www.mulesoft.org/schema/mule/secure-properties 
+						http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+						http://www.mulesoft.org/schema/mule/salesforce 
+						http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+						http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4 
+						http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4/current/mule-azure-cosmos-db-connector-mule-4.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+
+	<http:listener-config
+		name="fuank-customer-api-httpListenerConfig">
+		<http:listener-connection
+			host="0.0.0.0"
+			port="${https.port}" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="keystore.jks" keyPassword="${secure::tls.keystore.password}" password="${secure::tls.keystore.password}" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+
+	<apikit:config
+		name="fuank-customer-api-config"
+		api="resource::1894c786-8c56-4de2-8624-50d2c575ee1d:fuank-customer-api:1.0.1:raml:zip:fuank-customer-api.raml"
+		outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" />
+	<secure-properties:config
+		name="Secure_Properties_Config"
+		doc:name="Secure Properties Config"
+		doc:id="85a1fe9e-6fd3-4484-97ba-71b6fb5e9105"
+		file="config/app-secure-config.yaml"
+		key="${secret.key}" />
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="4fc84a60-2d27-4396-912d-f12c4c61cdde"
+		file="config/app-config.yaml" />
+
+	<salesforce:sfdc-config
+		name="Salesforce_Config"
+		doc:name="Salesforce Config"
+		doc:id="d178840a-e0e8-4c57-8dcb-727fa154aa85">
+		<salesforce:basic-connection
+			username="${sfdc.username}"
+			password="${secure::sfdc.password}"
+			securityToken="${secure::sfdc.token}" />
+	</salesforce:sfdc-config>
+
+	<azure-cosmos-db-connector-mule-4:key-token-config
+		name="Azure_Cosmos_Db_Key_Token_Config"
+		doc:name="Azure Cosmos Db Key Token Config"
+		doc:id="e5362d76-707c-4fcf-89a4-a1d59db5d568">
+		<azure-cosmos-db-connector-mule-4:key-token-auth-connection
+			baseUri="${cosmos.url}"
+			key="${secure::cosmos.key}"
+			version="${cosmos.version}" />
+	</azure-cosmos-db-connector-mule-4:key-token-config>
+	<api-gateway:autodiscovery apiId="18504153" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="9795c445-e076-4c70-8ffe-f65db73cc08d" flowRef="fuank-customer-api-main" />
+</mule>

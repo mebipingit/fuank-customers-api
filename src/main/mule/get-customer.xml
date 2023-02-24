@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:azure-cosmos-db-connector-mule-4="http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4 http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4/current/mule-azure-cosmos-db-connector-mule-4.xsd">
+	<sub-flow name="retriveCustomerDetails" doc:id="e85e3da7-d604-4d6f-8da9-c192cc1296ed" >
+		<set-variable value="#[attributes.uriParams.'customerId']" doc:name="customerId" doc:id="5c803afa-05f0-44aa-ba64-1e3d4a30caec" variableName="customerId"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="58cf741a-0b4f-45ec-9bea-076f3fad14dc" >
+			<route >
+				<logger level="INFO" doc:name="queryLeads" doc:id="3def59a9-70ed-4a95-a9f1-6bb41d95b624" message="#[&quot;Going to query leads for the customer Id: &quot; ++ (vars.customerId default '')]"/>
+				<salesforce:query doc:name="queryLeads" doc:id="2c01bda7-dbdb-4584-b4d4-d93424ce1a09" config-ref="Salesforce_Config">
+					<salesforce:salesforce-query ><![CDATA[SELECT Id, FirstName, LastName, Company, Phone, Email, Ex_Cust_Id__c
+FROM Lead WHERE Ex_Cust_Id__c=':customerId']]></salesforce:salesforce-query>
+					<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"customerId" : vars.customerId
+}]]]></salesforce:parameters>
+				</salesforce:query>
+				<logger level="INFO" doc:name="queryLeadsResponse" doc:id="425f1669-fa78-458c-8034-0beade1cd477" message="Response from leads query -&gt; #[ output application/json --- payload]"/>
+			</route>
+			<route >
+				<logger level="INFO" doc:name="queryDB" doc:id="21963778-643d-4c2d-b4c4-46dbfacc8533" message="#[&quot;Going to query Database for the customer Id: &quot; ++ (vars.customerId default '')]"/>
+				<try doc:name="Try" doc:id="ab57692a-9bec-4763-9b7f-389eb76407fb" >
+					<azure-cosmos-db-connector-mule-4:get-document doc:name="Get Document" doc:id="482012bb-4699-4e8f-b56e-b45f6054489a" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuank" collIdUriParam="customers" docIdUriParam="#[vars.customerId]" xMsDocumentdbPartitionkeyHeader="#['[&quot;' ++ vars.customerId ++ '&quot;]']" />
+					<logger level="INFO" doc:name="dbQueryResponse" doc:id="19a9370c-db6e-48de-b63b-00f1943fe13d" message="Response from database query -&gt; #[payload]" />
+					<error-handler >
+						<on-error-continue enableNotifications="false" logException="false" doc:name="On Error Continue" doc:id="9b97e851-5767-460b-b3c0-33ee175d7032" type="AZURE-COSMOS-DB-CONNECTOR-MULE-4:NOT_FOUND">
+							<set-payload value="#[[]]" doc:name="emptyArray" doc:id="744329de-1df5-4da4-863c-6a80a26c0d5e" />
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</route>
+		</scatter-gather>
+		<choice doc:name="Choice" doc:id="ab6d1f88-ebbf-4236-b9cb-756bb65ffd77" >
+			<when expression="#[isEmpty(payload[0].payload) or isEmpty(payload[1].payload)]">
+				<set-variable value="404" doc:name="httpStatus" doc:id="7c570988-1aab-4ff3-bf32-e7fff2f43cd6" variableName="httpStatus"/>
+				<ee:transform doc:name="getCustomerNotFound" doc:id="057096cc-2064-4003-adc4-d14aa4e26f85" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	statusCode: "404",
+	message: "Customer not found"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="getCustomerFinalResponse">
+            <ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+var sfdcResponse = payload[0].payload[0]
+var DbResponse = payload[1].payload
+---
+
+{
+    customerId : sfdcResponse.Ex_Cust_Id__c,
+    firstName : sfdcResponse.FirstName,  
+    lastName : sfdcResponse.LastName,
+    companyName : sfdcResponse.Company,
+    phone : sfdcResponse.Phone,
+    email : sfdcResponse.Email,
+    (DbResponse.&addresses)
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+            </ee:variables>
+        </ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

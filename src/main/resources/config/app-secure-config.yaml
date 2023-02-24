@@ -1,0 +1,10 @@
+sfdc:
+  password: "![PH/4s7ZpUKra1SaGq9yQMg==]"
+  token: "![xOYNytMcwhzK4xH5qjau0I6vv7te8+V8nWEoQV2F+4o=]"
+  
+cosmos:
+  key: "![sYnyxQZiwcYqi/e4DWlzCLGAvzvJOorfS5jdu5ng9BmiwRw+OURrxgOBSyjs57KJ612SafYVzgx2pWfPf8ePF0Gu1NW3BL87RYXJCOvHvFZeUFrfJ2v1A1UD2VboAZkW]"
+  
+tls:
+  keystore:
+    password: "![6YYaru8uGogMfe0xcGqqAg==]"

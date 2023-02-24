@@ -1,0 +1,23 @@
+apikitBadRequest:
+  errorType: "APIKIT:BAD_REQUEST"
+  statusCode: "400"
+  
+apikitNotFound:
+  errorType: "APIKIT:NOT_FOUND"
+  statusCode: "404"
+  
+apikitNotAllowed:
+  errorType: "APIKIT:METHOD_NOT_ALLOWED"
+  statusCode: "405"
+  
+apikitNotAcceptable:
+  errorType: "APIKIT:NOT_ACCEPTABLE"
+  statusCode: "406"
+  
+apikitUnsupportedMediaType:
+  errorType: "APIKIT:UNSUPPORTED_MEDIA_TYPE"
+  statusCode: "415"
+  
+apikitNotImplemented:
+  errorType: "APIKIT:NOT_IMPLEMENTED"
+  statusCode: "501"

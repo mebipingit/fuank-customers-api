@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+	xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+	<munit:config name="apikit-error-handling-test-suite.xml">
+		<munit:parameterizations
+			file="apikitErrorParameterizations.yaml" />
+	</munit:config>
+	<munit:test
+		name="apikit-error-handling-test"
+		doc:id="eaecd389-42b3-4e83-8347-450f7bd67b9e"
+		description="Test">
+		<munit:behavior>
+			<munit-tools:mock-when
+				doc:name="routerWithApikitErrors"
+				doc:id="e4c557c5-1314-4ad1-8dfb-4cd63ec7bb68"
+				processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="fuank-customer-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return>
+					<munit-tools:error typeId="${errorType}" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution>
+			<try
+				doc:name="Try"
+				doc:id="bf7abb3a-c444-43c9-bd0c-c911e57616d9">
+				<flow-ref
+					doc:name="fuank-customer-api-main"
+					doc:id="07d9db0c-7e61-44d8-b464-0b5dfad463db"
+					name="fuank-customer-api-main" />
+				<error-handler>
+					<on-error-continue
+						enableNotifications="false"
+						logException="false"
+						doc:name="On Error Continue"
+						doc:id="038e4e78-da0c-4aff-9fe2-c70383589050"
+						type="ANY" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-equals
+				doc:name="assertStatusCode"
+				doc:id="68e9c3ec-d821-4241-9494-bb5cc70249a5"
+				actual="#[vars.httpStatus]"
+				expected="${statusCode}" />
+		</munit:validation>
+	</munit:test>
+</mule>

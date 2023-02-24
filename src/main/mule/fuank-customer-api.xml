@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core
+						http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+						http://www.mulesoft.org/schema/mule/http 
+						http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+						http://www.mulesoft.org/schema/mule/mule-apikit 
+						http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+						http://www.mulesoft.org/schema/mule/ee/core 
+						http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+
+	<flow name="fuank-customer-api-main">
+		<http:listener
+			config-ref="fuank-customer-api-httpListenerConfig"
+			path="${https.basePath}">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[vars.outboundHeaders default {} ++ {"x-correlation-id" : correlationId}]]]></http:headers>
+			</http:response>
+			<http:error-response
+				statusCode="#[vars.httpStatus default 500]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {} ++ {"x-correlation-id" : correlationId}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<logger
+			level="INFO"
+			doc:name="BeginProcessing"
+			doc:id="2f339484-404a-40f3-9383-5cb439125577"
+			message='Request received with payload -&gt; #[output application/json --- payload]' />
+		<apikit:router config-ref="fuank-customer-api-config" />
+		<logger
+			level="INFO"
+			doc:name="EndProcessing"
+			doc:id="897fd01e-d3fe-42ce-8bd6-29f9bd70051b"
+			message='Request processed with response  -&gt; #[output application/json --- payload]' />
+		<error-handler>
+			<on-error-propagate
+				enableNotifications="false"
+				logException="false"
+				doc:name="apikitErrors-Propagate"
+				doc:id="e41046bc-8646-473b-84bc-ba8c15e97a32"
+				type="APIKIT:BAD_REQUEST, APIKIT:METHOD_NOT_ALLOWED, APIKIT:NOT_ACCEPTABLE, APIKIT:NOT_FOUND, APIKIT:UNSUPPORTED_MEDIA_TYPE, APIKIT:NOT_IMPLEMENTED">
+				<logger
+					level="INFO"
+					doc:name="apikitError"
+					doc:id="a450c2a1-5c96-4ae4-bb7a-af452e96977b"
+					message="Apikit error -&gt; #[error.errorType.asString]" />
+				<ee:transform
+					doc:name="apikitErrorFormatting"
+					doc:id="32849551-99b1-4bb1-a7ca-315391d0b985">
+					<ee:message>
+						<ee:set-payload
+							resource="dwl/apikitErrorFormatting.dwl" />
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus"><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<set-variable value="#[payload.statusCode]" doc:name="httpStatus" doc:id="92396560-252f-4b3c-ac6b-2a64ce436e5c" variableName="httpStatus" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="false" logException="false" doc:name="On Error Propagate" doc:id="b133ed91-328d-4e34-a43f-7c7f42a1688f">
+				<logger level="INFO" doc:name="anyErrorDuringProcessing" doc:id="0a16e672-ad88-4c39-adad-45c3d631cdca" message='#["Error processing the request -&gt;" ++  error.description]' />
+				<ee:transform doc:name="anyErrorResponse" doc:id="e3b1b5b3-21e3-40ad-94f5-1c3c9dea9957">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	statusCode: "500",
+	message: "Unable to process the request due to internal server error."
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="put:\customers\(customerId):fuank-customer-api-config">
+		<logger level="INFO" doc:name="startUpdateCustomer" doc:id="e745f9ce-1327-421b-afcc-74044f8d250d" message='#["Begin customer update process."]' />
+		<flow-ref doc:name="updateCustomer" doc:id="1243decb-b3e2-4344-ae20-944bbcdb7128" name="updateCustomer" />
+		<logger level="INFO" doc:name="endUpdateCustomer" doc:id="331ca831-d7aa-4993-8b17-ddb77511198b" message='#["End customer update process."]' />
+	</flow>
+	<flow name="get:\customers\(customerId):fuank-customer-api-config">
+		<logger
+			level="INFO"
+			doc:name="startRetrieveCustomer"
+			doc:id="7d4eaeec-0a8f-4fba-be65-62fd58c4c8da"
+			message='#["Begin customer retrieval process."]' />
+		<flow-ref
+			doc:name="retriveCustomerDetails"
+			doc:id="ded9a37b-a57b-4a49-af2d-b28b096e12b9"
+			name="retriveCustomerDetails" />
+		<logger
+			level="INFO"
+			message='#["Finish customer retrieval process."]'
+			doc:name="endRetrieveCustomer" />
+    </flow>
+    <flow name="post:\customers:application\json:fuank-customer-api-config">
+        <logger level="INFO" doc:name="startCreateCustomer" doc:id="4f56645d-b86b-4b8d-8740-9d13b6cae852" message='#["Begin creating customer process."]'/>
+		<flow-ref doc:name="createCustomer" doc:id="d9eeb7d3-117a-423f-85a7-e8ce8ed1d0af" name="createCustomer"/>
+		<logger level="INFO" message='#["Finish creating customer process."]' doc:name="endCreateCustomer"/>
+    </flow>
+</mule>
